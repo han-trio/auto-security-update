@@ -15,12 +15,13 @@ LOG="/var/log/yum-auto-updates.log"
 CHECK=$(which needs-restarting)
 SHUTDOWN=$(which shutdown)
 SYSTEMCTL=$(which systemctl)
+SLEEP=$(which sleep)
 REBOOT=$(which reboot)
 REBOOT_VAR="255"
 
 echo -e "\n$DATE" >> $LOG
 
-# install "needs-restarting" binary, if becessary
+# install "needs-restarting" binary, if becessary (from yum-utils)
 [[ -z $(yum list installed | grep "yum-utils") ]] && yum install yum-utils && echo -e "yum-utils need to be installed..\tdone" >> $LOG
 
 #####
@@ -41,11 +42,10 @@ yum makecache && echo -e "cache has been updated" >> $LOG
 # install packages that have a security errata issue:
 yum update-minimal --security -y
 echo -e "Security updates have been checked @ $(date +%T).\nPlease find more infos in local yum.log\n" >> $LOG
-        # THIS :)
 
 #####
 
-# check for services that need reboot
+# check for services that need reboot:
 # needs-restarting -s
 
 for service in $($CHECK -s); do
@@ -54,7 +54,7 @@ done
 
 #####
 
-# check if general reboot is needed, using:
+# check if general reboot is needed:
 # needs-restarting -r
 
 # exit 0 = NO reboot required
@@ -62,6 +62,9 @@ done
 
 $CHECK -r
 REBOOT_VAR=$?
+
+# testing the reboot var - manually set to "1", so that reboot should occur
+# REBOOT_VAR="1"
 
 case $REBOOT_VAR in
         0)
@@ -71,8 +74,10 @@ case $REBOOT_VAR in
         1)
         echo -e "$(date +%T)\tGeneral reboot required, doing so in 1 min.." >> $LOG
         wall "Server reboot in 1 minute! SAVE YOUR WORK!!"
-        # $SHUTDOWN -r
-        $REBOOT
+        # $SHUTDOWN -r          # NOT working
+        /usr/sbin/shutdown -r   # this works :)
+        # $REBOOT               # NOT working
+        $SLEEP 90               # to ensure reboot takes place!
         ;;
 
         *)
